@@ -1,69 +1,40 @@
-PYTHON3      = python3
-SOURCEDIR    = netsquid_simulationtools
-TESTDIR      = tests
-EXAMPLES     = examples
-RUNEXAMPLES  = ${EXAMPLES}/run_examples.py
-PIP_FLAGS    = --extra-index-url=https://${NETSQUIDPYPI_USER}:${NETSQUIDPYPI_PWD}@pypi.netsquid.org
-MINCOV       = 0
+# Minimal makefile for Sphinx documentation
+#
 
+# You can set these variables from the command line.
+SPHINXOPTS    =
+SPHINXBUILD   = sphinx-build
+SOURCEDIR     = .
+BUILDDIR      = build
+PROJECTNAME   = netsquid-simulationtools
+DOCSSERVER    = docs.netsquid.org
+DOCSFOLDER    = /srv/netsquid/docs/snippets
+
+# Put it first so that "make" without argument is like "make help".
 help:
-	@echo "install           Installs the package (editable)."
-	@echo "verify            Verifies the installation, runs the linter and tests."
-	@echo "test              Runs the tests."
-	@echo "examples          Runs the examples and makes sure they work."
-	@echo "open-cov-report   Creates and opens the coverage report."
-	@echo "lint              Runs the linter."
-	@echo "deploy-bdist      Builds and uploads the package to the netsquid pypi server."
-	@echo "bdist             Builds the package."
-	@echo "test-deps         Installs the requirements needed for running tests and linter."
-	@echo "python-deps       Installs the requirements needed for using the package."
-	@echo "clean             Removes all .pyc files."
-	
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-test-deps:
-	@$(PYTHON3) -m pip install -r test_requirements.txt
+# Catch-all target: route all unknown targets to Sphinx using the new
+# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+%: Makefile
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-python-deps: _check_variables
-	@$(PYTHON3) -m pip install -r requirements.txt ${PIP_FLAGS}
 
-clean:
-	@/usr/bin/find . -name '*.pyc' -delete
+python-deps:
+	pip3 install -r requirements.txt
 
-lint:
-	@$(PYTHON3) -m flake8 ${SOURCEDIR} ${TESTDIR} ${EXAMPLEDIR}
+build: python-deps html
 
-tests:
-	@$(PYTHON3) -m pytest --cov=${SOURCEDIR} --cov-fail-under=${MINCOV} tests
+open:
+	open ${BUILDDIR}/html/index.html
 
-open-cov-report:
-	@$(PYTHON3) -m pytest --cov=${SOURCEDIR} --cov-report html tests && open htmlcov/index.html
+see: html open
 
-examples:
-	@${PYTHON3} ${RUNEXAMPLES} > /dev/null && echo "Examples OK!"
-
-bdist:
-	@$(PYTHON3) setup.py bdist_wheel
-
-install: _check_variables test-deps
-	@$(PYTHON3) -m pip install -e . ${PIP_FLAGS}
-
-_check_variables:
-ifndef NETSQUIDPYPI_USER
-	$(error Set the environment variable NETSQUIDPYPI_USER before uploading)
-endif
-ifndef NETSQUIDPYPI_PWD
-	$(error Set the environment variable NETSQUIDPYPI_PWD before uploading)
+upload:
+ifdef NETSQUIDCI_USER
+	/usr/bin/env scp -r ${BUILDDIR}/html/* ${NETSQUIDCI_USER}@${DOCSSERVER}:${DOCSFOLDER}/${PROJECTNAME}
+else
+	$(error Set the environment variable NETSQUIDCI_USER before uploading)
 endif
 
-_clean_dist:
-	@/bin/rm -rf dist
-
-deploy-bdist: _clean_dist bdist
-	@$(PYTHON3) setup.py deploy
-
-verify: clean test-deps python-deps lint tests examples _verified
-
-_verified:
-	@echo "The snippet is verified :)"
-
-.PHONY: clean lint test-deps python-deps tests verify bdist deploy-bdist _clean_dist install open-cov-report examples _check_variables
+.PHONY: help Makefile python-deps build open see
